@@ -11,7 +11,7 @@ import matplotlib.animation as animation
 
 # Physics
 g = 9.81 # gravity acceleration
-L = 1100 # length
+L = 8000 # length
 k = 0.002 # friction
 
 # Initial conditions
@@ -28,7 +28,7 @@ Lx = np.linspace(0, L, nbstepx)
 
 # Bathymetry (slope)
 
-C = np.zeros(nbstepx) + 0.01*np.cos(10*6/L*Lx)
+C = np.zeros(nbstepx)
 
 ### Saint-Venant's linearized PDE fonctions
 
@@ -74,16 +74,23 @@ Zf = np.array([dx*np.sum(C[:i]) for i in range(nbstepx)])
 print("Simulation of the stationary states : success")
 
 # Computes the resistor function
-def resistor(Hstar, Vstar):
+def resistor(eta0, Hstar, Vstar):
     phi = 1.0 # (phi(0) = 1)
-    resistor = np.zeros(nbstepx) + 1.0
+    resistor = np.zeros(nbstepx) + eta0
     for i in range(nbstepx - 1):
         phi = phi*np.exp(dx*(gamma1(k, Vstar[i], Hstar[i], C[i])/lambda1(Vstar[i], Hstar[i]) + delta2(k, Vstar[i], Hstar[i], C[i])/lambda2(Vstar[i], Hstar[i])))
         resistor[i+1] = resistor[i] + dx*(phi*delta1(k, Vstar[i], Hstar[i], C[i])/lambda1(Vstar[i], Hstar[i]) + gamma2(k, Vstar[i], Hstar[i], C[i])/(lambda2(Vstar[i], Hstar[i])*phi)*(resistor[i]**2))
 
     return resistor
 
-res = resistor(Hp, Vp)
+res = resistor(1.5, Hp, Vp)
+
+# Computes the maximal y0 such that the resistor eta is defined with eta(0) = y0, assuming C = 0
+def max_init_cond(r0):
+    return (1-r0)/(1+r0)+np.power((1+r0)/(4*r0*(1-r0))*(2*r0**2 - 2*r0 + 1 - np.power(r0, 8/3)), -1)
+
+r_0 = np.linspace(0.001, 0.999, 1000)
+y0_star = max_init_cond(r_0)
 
 ### Display
 # useful functions
@@ -109,4 +116,9 @@ def Display_GP(val_name, unit, Val):
 # stationary state
 Display_GP('H', 'm', Hp - Zf) # Height
 Display_GP('V', 'm/s', Vp) # Speed
-Display_GP('eta', 'N.A.', res) # Speed
+Display_GP('eta', 'N.A.', res) # Resistor
+
+# Globality Condition
+plt.title("y0_max varying with r(0)")
+plt.plot(r_0, y0_star)
+plt.show()
